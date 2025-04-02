@@ -12,7 +12,7 @@ export default function Home() {
       try {
         const response = await fetch('/api/news');
         const data = await response.json();
-        setNews(data.data); // Access the articles
+        setNews(data);
       } catch (err) {
         setError(true);
       } finally {
@@ -32,9 +32,19 @@ export default function Home() {
       <ul>
         {news.map((article) => (
           <li key={article.url} className="mb-4">
-            <a href={article.url} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">
-              {article.title}
+            <a
+              href={article.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-500 hover:underline"
+            >
+              <h2 className="font-semibold">{article.title}</h2>
             </a>
+            <ul className="list-disc pl-5 mt-2">
+              {article.summary?.map((point: string, index: number) => (
+                <li key={index}>{point}</li>
+              ))}
+            </ul>
           </li>
         ))}
       </ul>

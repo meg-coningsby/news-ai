@@ -1,0 +1,28 @@
+{
+  "singleQuote": true,
+  "importOrder": [
+    "^(fs|fs/promises|os|util|path|child_process|http|https|url)$",
+    "^react$",
+    "(^next|react|prop-types|styled-components|urql)",
+    "^(express|graphql|sequelize)$",
+    "<THIRD_PARTY_MODULES>",
+    "^(genero-lib/init|genero-lib/dotenv-config|cloud-pubsub/init|../src/static/reset.css|static/reset.css|./index.scss|test-utils)$",
+    "^(genero-platform|@genero-lib|customProps|genero-config|genero-ui|cloud-pubsub|@cloud-pubsub|@testing/|@libs/)",
+    "^(src|components|graphql/|cinemaUI|contexts|lib/|redux/|scenes|services/|copy|static|layouts|featureFlags|mediaQueries|test|modals|slices|styles|utils)/?(.*)$",
+    "^(?!.*(css|scss|graphql))^[./](.*)",
+    ".graphql$",
+    "(.scss|.css)$"
+  ],
+  "overrides": [
+    {
+      "files": "*.ts",
+      "options": {
+        "importOrderParserPlugins": ["typescript"]
+      }
+    }
+  ],
+  "importOrderCaseInsensitive": true,
+  "importOrderSeparation": true,
+  "importOrderSortSpecifiers": true,
+  "importOrderParserPlugins": ["jsx", "typescript"]
+}
