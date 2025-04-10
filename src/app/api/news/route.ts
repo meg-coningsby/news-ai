@@ -16,6 +16,21 @@ let cachedRawNews: any = null;
 let lastFetchedTime: number = 0;
 const CACHE_DURATION = 24 * 60 * 60 * 1000;
 
+function checkCache() {
+  const now = Date.now();
+  const cacheAge = now - lastFetchedTime;
+  const cacheValid = cachedRawNews && cacheAge < CACHE_DURATION;
+
+  console.log(`Cache check: 
+    - Cache exists: ${cachedRawNews !== null}
+    - Cache age: ${Math.round(cacheAge / 1000 / 60)} minutes
+    - Cache max age: ${Math.round(CACHE_DURATION / 1000 / 60)} minutes
+    - Cache valid: ${cacheValid}
+  `);
+
+  return cacheValid;
+}
+
 function truncateArticleContent(article: any) {
   return {
     title: article.title,
@@ -48,7 +63,7 @@ async function getFilteredTopStories(articles: any[]) {
   }
 }
 
-async function getSummaryFromAI(articles: any[]) {
+async function getSummaryFromAI(articles) {
   console.log('Summarising the top news stories...');
   const summaries = [];
 
@@ -102,7 +117,7 @@ export async function GET() {
   const now = Date.now();
 
   // Use cached raw news if available
-  if (cachedRawNews && now - lastFetchedTime < CACHE_DURATION) {
+  if (checkCache()) {
     console.log('Using cached raw news, but processing with AI 📰');
     const filteredArticles = await getFilteredTopStories(cachedRawNews);
     const summarizedArticles = await getSummaryFromAI(filteredArticles);
@@ -110,21 +125,36 @@ export async function GET() {
   }
 
   try {
-    console.log('Fetching fresh news from API 🌍');
+    console.log('Fetching fresh news from Australia 🌍');
+
     const response = await axios.get(BASE_URL, {
       params: {
         access_key: API_KEY,
         countries: 'au',
         languages: 'en',
-        limit: 25,
+        limit: 75,
       },
     });
 
-    console.log('API response received');
+    console.log(
+      `Received ${response.data.data?.length || 0} articles from Australia`
+    );
+
+    if (!response.data.data || !Array.isArray(response.data.data)) {
+      console.error('Invalid API response structure:', response.data);
+      return NextResponse.json(
+        { error: 'Invalid API response structure' },
+        { status: 500 }
+      );
+    }
+
     const articles = response.data.data;
+
+    // Cache the raw news
     cachedRawNews = articles;
     lastFetchedTime = now;
 
+    // Process the articles
     const filteredArticles = await getFilteredTopStories(articles);
     const summarizedArticles = await getSummaryFromAI(filteredArticles);
 
