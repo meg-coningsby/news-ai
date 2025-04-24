@@ -127,17 +127,27 @@ export async function GET() {
   try {
     console.log('Fetching fresh news from Australia 🌍');
 
+    const includedCategories = 'general,business,health,science,technology';
+    const excludedKeywords =
+      'football,soccer,cricket,rugby,basketball,nba,a-league,grand final,athlete,team,match,celebrity,actor,singer,movie,tv show,album,gossip,film,music,entertainment,lifestyle,fashion,travel,food,recipe,local news,shop,store,sport,game,league,club,player,coach,stadium,arena,score,win,lose,defeat,cup,championship,final,draft,trade';
+    const includedSources = 'abc-au,crikey,the-age';
+
     const response = await axios.get(BASE_URL, {
       params: {
         access_key: API_KEY,
         countries: 'au',
         languages: 'en',
-        limit: 75,
+        limit: 100,
+        sources: includedSources,
+        categories: includedCategories,
+        keywords: `-${excludedKeywords.split(',').join(',-')}`,
       },
     });
 
     console.log(
-      `Received ${response.data.data?.length || 0} articles from Australia`
+      `Received ${
+        response.data.data?.length || 0
+      } articles from the specified sources`
     );
 
     if (!response.data.data || !Array.isArray(response.data.data)) {
@@ -149,6 +159,10 @@ export async function GET() {
     }
 
     const articles = response.data.data;
+
+    articles.forEach((article) => {
+      console.log(`Source: ${article.source}, Headline: ${article.title}`);
+    });
 
     // Cache the raw news
     cachedRawNews = articles;
