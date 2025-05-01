@@ -118,7 +118,12 @@ export async function GET() {
   try {
     console.log('Fetching fresh news from Uplifting News');
 
-    const response = await axios.get(REDDIT_URL);
+    const response = await axios.get(REDDIT_URL, {
+      headers: {
+        'User-Agent':
+          'NewsAIVercelApp:news-ai-chi:v1.0 (contact: meganconingsby@gmail.com)',
+      },
+    });
 
     console.log(
       `Received ${
