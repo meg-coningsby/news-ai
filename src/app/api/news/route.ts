@@ -21,13 +21,6 @@ function checkCache() {
   const cacheAge = now - lastFetchedTime;
   const cacheValid = cachedRawNews && cacheAge < CACHE_DURATION;
 
-  console.log(`Cache check: 
-    - Cache exists: ${cachedRawNews !== null}
-    - Cache age: ${Math.round(cacheAge / 1000 / 60)} minutes
-    - Cache max age: ${Math.round(CACHE_DURATION / 1000 / 60)} minutes
-    - Cache valid: ${cacheValid}
-  `);
-
   return cacheValid;
 }
 
@@ -90,7 +83,6 @@ async function getSummaryFromAI(articles) {
 
       try {
         const parsedResponse = JSON.parse(aiResponse);
-        // Use the parsed response directly - it should already have title and summary
         summaries.push({
           ...article,
           title: parsedResponse.title || article.title,
@@ -98,7 +90,6 @@ async function getSummaryFromAI(articles) {
         });
       } catch (parseError) {
         console.error('Error parsing AI response:', parseError);
-        // Fallback if parsing fails
         summaries.push({
           ...article,
           summary: ['Failed to generate summary'],
@@ -160,15 +151,9 @@ export async function GET() {
 
     const articles = response.data.data;
 
-    articles.forEach((article) => {
-      console.log(`Source: ${article.source}, Headline: ${article.title}`);
-    });
-
-    // Cache the raw news
     cachedRawNews = articles;
     lastFetchedTime = now;
 
-    // Process the articles
     const filteredArticles = await getFilteredTopStories(articles);
     const summarizedArticles = await getSummaryFromAI(filteredArticles);
 

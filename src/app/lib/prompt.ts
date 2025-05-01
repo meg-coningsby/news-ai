@@ -5,7 +5,7 @@ Here are recent news articles:
 ${JSON.stringify(articles, null, 2)}
 
 STORY SELECTION CRITERIA:
-- Choose UP TO 10 articles MAXIMUM - ONLY include genuinely important news with significant impact
+- Choose 10 articles MINIMUM, TO 30 articles MAXIMUM - ONLY include genuinely important news with significant impact
 - NEVER include more than one article about the same topic/event
 - Focus ONLY on news that has substantial impact on Australian citizens or major global events with clear Australian relevance
 
@@ -37,7 +37,7 @@ For EACH article, perform a KEYWORD SEARCH in its HEADLINE and SUMMARY:
 
 Return your selection in this format:
 {
-  "topStories": [...the selected articles (up to 10)...]
+  "topStories": [...the selected articles (minimum 10, to 30 maximum)...]
 }
 `;
 
@@ -61,5 +61,69 @@ Return your summary in exactly this JSON format:
 {
   "title": "Specific, informative headline",
   "summary": ["Detailed, contextual bullet point 1", "Detailed, contextual bullet point 2", "Detailed, contextual bullet point 3"]
+}
+`;
+
+export const SELECT_UPLIFTING_STORIES_PROMPT = (articles: any[]) => `
+You are an AI curator for the 'Good News' section of an Australian news app. Your task is to select the most genuinely uplifting and positive news stories from the following articles.
+
+Here are recent news articles:
+${JSON.stringify(articles, null, 2)}
+
+STORY SELECTION CRITERIA:
+- Choose between 10 to 30 articles that are genuinely uplifting, heartwarming, and positive.
+- Prioritize stories that evoke feelings of hope, kindness, progress, or human achievement.
+- While Australian relevance is a plus, it is not strictly required. Uplifting global stories with broad appeal are welcome.
+- Avoid stories that are only mildly positive or could be interpreted as self-promotional or trivial. Focus on genuine good news.
+
+STRICTLY INCLUDE STORIES THAT PRIMARILY FALL INTO THESE CATEGORIES (and genuinely evoke positive emotions):
+  * Acts of kindness and generosity by individuals or groups.
+  * Positive scientific or technological breakthroughs that benefit humanity or the environment.
+  * Heartwarming stories of animal welfare and rescue.
+  * Community initiatives and positive social changes.
+  * Environmental conservation successes and positive ecological developments.
+  * Stories of overcoming adversity and demonstrating resilience.
+  * Celebrations of human achievement and inspiring personal stories.
+  * Unexpected positive outcomes in challenging situations.
+
+YOU MUST EXCLUDE ALL STORIES THAT CONTAIN ANY OF THESE INDICATORS IN THEIR HEADLINE OR SUMMARY:
+  * Any hint of negativity, tragedy, or conflict.
+  * Stories focused on crime, accidents, or disasters (even with positive outcomes).
+  * Political news (unless it's an overwhelmingly positive bipartisan achievement with clear benefits).
+  * Business news focused solely on profit or market trends (unless it has a clear positive social impact).
+  * Health news focused on illness or disease (unless it's a major breakthrough presented with strong hope).
+  * Stories that feel like marketing or advertising.
+  * Anything that could be perceived as sarcastic or ironic in a negative way.
+
+CRITICAL VERIFICATION STEP (Apply these checks rigorously to both HEADLINE and SUMMARY BEFORE selecting an article):
+For EACH article, perform a KEYWORD SEARCH and EMOTIONAL TONE ASSESSMENT in its HEADLINE and SUMMARY:
+1. Does the HEADLINE or SUMMARY contain any keywords or context suggesting negativity, harm, or conflict? If YES, EXCLUDE.
+2. Does the overall tone of the HEADLINE and SUMMARY feel genuinely uplifting and positive? If NO, EXCLUDE.
+3. Does the story primarily focus on an act of kindness, a positive achievement, or a hopeful development? If NO, EXCLUDE.
+4. Could the story be misconstrued as trivial or lacking genuine substance? If YES, EXCLUDE.
+
+Return your selection in this format:
+{
+  "upliftingStories": [...the selected articles (minimum 10, to 30 maximum)...]
+}
+`;
+
+export const REWRITE_UPLIFTING_PROMPT = (article: any) => `
+You are an AI editor for the 'Good News' section of an Australian news app. Your task is to rewrite the headline of the following news article to be engaging, concise, and strongly highlight the positive and uplifting aspects of the story.
+
+Here is the news article headline:
+${article.title}
+
+MANDATORY RULES FOR HEADLINE:
+1. Write a clear, concise, and engaging title that captures the most heartwarming or inspiring essence of the story.
+2. Focus on the positive outcomes, acts of kindness, or hopeful developments mentioned in the original headline.
+3. Use positive and encouraging language while remaining factual and avoiding sensationalism.
+4. If the story has a location or key individuals that contribute to the uplifting nature, include them if it fits concisely.
+5. Aim for a title that would make readers feel good and want to learn more.
+6. Never include URLs or "read more" references.
+
+Return your rewritten headline in exactly this JSON format:
+{
+  "title": "Engaging and positive headline"
 }
 `;
