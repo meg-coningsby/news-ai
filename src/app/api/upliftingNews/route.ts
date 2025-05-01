@@ -162,11 +162,21 @@ export async function GET() {
     const summarizedArticles = await getSummaryFromAI(articlesToSummarize);
 
     return NextResponse.json(summarizedArticles);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching or processing uplifting news:', error);
-    return NextResponse.json(
-      { error: `Failed to fetch uplifting news: ${error}` },
-      { status: 500 }
-    );
+    if (error.response?.status === 403) {
+      return NextResponse.json(
+        {
+          error:
+            'Forbidden - Could not retrieve data from Reddit. Please check your User-Agent or if Reddit is blocking requests.',
+        },
+        { status: 403 }
+      );
+    } else {
+      return NextResponse.json(
+        { error: `Failed to fetch uplifting news: ${error.message}` },
+        { status: 500 }
+      );
+    }
   }
 }

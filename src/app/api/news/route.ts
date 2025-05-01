@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 import OpenAI from 'openai';
 import {
   SELECT_TOP_STORIES_PROMPT,
@@ -190,11 +190,30 @@ export async function GET() {
     const summarizedArticles = await getSummaryFromAI(filteredArticles);
 
     return NextResponse.json(summarizedArticles);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching or processing news:', error);
-    return NextResponse.json(
-      { error: `Failed to fetch news: ${error}` },
-      { status: 500 }
-    );
+    if (error.response?.status === 429) {
+      return NextResponse.json(
+        {
+          error:
+            'Too Many Requests - You have exceeded the MediaStack API rate limit. Please try again later.',
+        },
+        { status: 429 }
+      );
+    } else if (error instanceof AxiosError) {
+      return NextResponse.json(
+        {
+          error: `Failed to fetch news from MediaStack: ${
+            error.message
+          } (Status: ${error.response?.status || 'unknown'})`,
+        },
+        { status: error.response?.status || 500 }
+      );
+    } else {
+      return NextResponse.json(
+        { error: `Failed to fetch news: ${error}` },
+        { status: 500 }
+      );
+    }
   }
 }
