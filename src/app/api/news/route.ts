@@ -12,30 +12,57 @@ const OPENAI_KEY = process.env.OPENAI_API_KEY;
 
 const openai = new OpenAI({ apiKey: OPENAI_KEY });
 
-let cachedRawNews: any = null;
+let cachedRawNews: RawArticle[] | null = null;
 let lastFetchedTime: number = 0;
 const CACHE_DURATION = 24 * 60 * 60 * 1000;
+
+interface RawArticle {
+  author: string | null;
+  title: string | null;
+  description: string | null;
+  url: string | null;
+  url_to_image: string | null;
+  published_at: string | null;
+  content: string | null;
+  source: {
+    name: string | null;
+    url: string | null;
+  };
+  category: string | null;
+  language: string | null;
+  country: string | null;
+}
+
+interface TruncatedArticle {
+  title: string | null;
+  summary: string[] | null;
+  url: string | null;
+}
+
+interface ArticleWithSummary extends TruncatedArticle {
+  summary: string[];
+}
 
 function checkCache() {
   const now = Date.now();
   const cacheAge = now - lastFetchedTime;
-  const cacheValid = cachedRawNews && cacheAge < CACHE_DURATION;
+  const cacheValid = cachedRawNews !== null && cacheAge < CACHE_DURATION;
 
   return cacheValid;
 }
 
-function truncateArticleContent(article: any) {
+function truncateArticleContent(article: RawArticle): TruncatedArticle {
   return {
     title: article.title,
-    summary: article.description,
+    summary: article.description ? [article.description] : null,
     url: article.url,
   };
 }
 
-async function getFilteredTopStories(articles: any[]) {
-  const truncatedArticles = articles.map(truncateArticleContent);
-
-  const prompt = SELECT_TOP_STORIES_PROMPT(truncatedArticles);
+async function getFilteredTopStories(
+  articles: TruncatedArticle[]
+): Promise<TruncatedArticle[]> {
+  const prompt = SELECT_TOP_STORIES_PROMPT(articles);
 
   console.log('Filtering the top news stories...');
 
@@ -48,7 +75,8 @@ async function getFilteredTopStories(articles: any[]) {
     const aiResponse = completion.choices[0].message.content ?? '';
     const parsedResponse = JSON.parse(aiResponse);
 
-    const topStories = parsedResponse.topStories || parsedResponse;
+    const topStories: TruncatedArticle[] =
+      parsedResponse.topStories || parsedResponse;
     return topStories;
   } catch (error) {
     console.error('Error filtering top stories:', error);
@@ -56,21 +84,20 @@ async function getFilteredTopStories(articles: any[]) {
   }
 }
 
-async function getSummaryFromAI(articles) {
+async function getSummaryFromAI(
+  articles: TruncatedArticle[]
+): Promise<ArticleWithSummary[]> {
   console.log('Summarising the top news stories...');
-  const summaries = [];
+  const summaries: ArticleWithSummary[] = [];
 
-  // Make sure articles is an array before proceeding
   if (!Array.isArray(articles)) {
     console.error('Articles is not an array:', articles);
-    if (articles.topStories && Array.isArray(articles.topStories)) {
-      articles = articles.topStories;
-    } else {
-      return [];
-    }
+    return [];
   }
 
   for (const article of articles) {
+    if (!article) continue;
+
     try {
       const prompt = REWRITE_SUMMARIZE_PROMPT(article);
 
@@ -86,7 +113,9 @@ async function getSummaryFromAI(articles) {
         summaries.push({
           ...article,
           title: parsedResponse.title || article.title,
-          summary: parsedResponse.summary || ['No summary available'],
+          summary: Array.isArray(parsedResponse.summary)
+            ? parsedResponse.summary
+            : [parsedResponse.summary || 'No summary available'],
         });
       } catch (parseError) {
         console.error('Error parsing AI response:', parseError);
@@ -108,9 +137,11 @@ export async function GET() {
   const now = Date.now();
 
   // Use cached raw news if available
-  if (checkCache()) {
+  if (checkCache() && cachedRawNews) {
     console.log('Using cached raw news, but processing with AI 📰');
-    const filteredArticles = await getFilteredTopStories(cachedRawNews);
+    const filteredArticles = await getFilteredTopStories(
+      cachedRawNews.map(truncateArticleContent)
+    );
     const summarizedArticles = await getSummaryFromAI(filteredArticles);
     return NextResponse.json(summarizedArticles);
   }
@@ -149,12 +180,13 @@ export async function GET() {
       );
     }
 
-    const articles = response.data.data;
-
-    cachedRawNews = articles;
+    const rawArticles: RawArticle[] = response.data.data;
+    cachedRawNews = rawArticles;
     lastFetchedTime = now;
 
-    const filteredArticles = await getFilteredTopStories(articles);
+    const filteredArticles = await getFilteredTopStories(
+      rawArticles.map(truncateArticleContent)
+    );
     const summarizedArticles = await getSummaryFromAI(filteredArticles);
 
     return NextResponse.json(summarizedArticles);

@@ -55,7 +55,7 @@ async function getFilteredTopStories(articles: any[]) {
   }
 }
 
-async function getSummaryFromAI(articles) {
+async function getSummaryFromAI(articles: any) {
   console.log('Rewriting the headlines of the top uplifting news stories...');
   const rewrittenArticles = [];
 
@@ -137,12 +137,16 @@ export async function GET() {
       );
     }
 
-    const articles = response.data.data.children.map((child) => ({
-      title: child.data.title,
-      url: child.data.url,
-      source: child.data.subreddit_name_prefixed,
-      reddit_data: child.data,
-    }));
+    const articles = response.data.data.children.map(
+      (child: {
+        data: { title: any; url: any; subreddit_name_prefixed: any };
+      }) => ({
+        title: child.data.title,
+        url: child.data.url,
+        source: child.data.subreddit_name_prefixed,
+        reddit_data: child.data,
+      })
+    );
 
     cachedRedditNews = articles;
     lastFetchedTime = now;
