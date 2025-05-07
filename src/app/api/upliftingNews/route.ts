@@ -120,8 +120,7 @@ export async function GET() {
 
     const response = await axios.get(REDDIT_URL, {
       headers: {
-        'User-Agent':
-          'NewsAIVercelApp:news-ai-chi:v1.0 (contact: meganconingsby@gmail.com)',
+        'User-Agent': 'news-ai-chi/0.1.0 by /u/bsidesister',
       },
     });
 
