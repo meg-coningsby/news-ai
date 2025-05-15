@@ -6,7 +6,41 @@ import {
   REWRITE_UPLIFTING_PROMPT,
 } from '../../lib/prompt';
 
-const REDDIT_URL = 'https://www.reddit.com/r/UpliftingNews/.json';
+const REDDIT_CLIENT_ID = process.env.REDDIT_CLIENT_ID;
+const REDDIT_CLIENT_SECRET = process.env.REDDIT_CLIENT_SECRET;
+const REDDIT_USERNAME = process.env.REDDIT_USERNAME;
+const REDDIT_PASSWORD = process.env.REDDIT_PASSWORD;
+const REDDIT_API_BASE_URL = 'https://oauth.reddit.com';
+const UPLIFTING_NEWS_SUBREDDIT = 'r/upliftingnews/top';
+
+async function getAccessToken() {
+  try {
+    const authString = Buffer.from(
+      `${REDDIT_CLIENT_ID}:${REDDIT_CLIENT_SECRET}`
+    ).toString('base64');
+
+    const response = await axios.post(
+      'https://www.reddit.com/api/v1/access_token',
+      'grant_type=password&username=' +
+        encodeURIComponent(REDDIT_USERNAME) +
+        '&password=' +
+        encodeURIComponent(REDDIT_PASSWORD),
+      {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          Authorization: `Basic ${authString}`,
+          'User-Agent': 'news-ai-chi/0.1.0 by /u/bsidesister',
+        },
+      }
+    );
+
+    return response.data.access_token;
+  } catch (error) {
+    console.error('Error getting access token:', error);
+    throw error;
+  }
+}
+
 const OPENAI_KEY = process.env.OPENAI_API_KEY;
 
 const openai = new OpenAI({ apiKey: OPENAI_KEY });
@@ -26,7 +60,7 @@ function checkCache() {
 function truncateArticleContent(article: any) {
   return {
     title: article.title,
-    summary: article.description,
+    summary: article.description, // Adjust if needed after inspecting Reddit data
     url: article.url,
   };
 }
@@ -102,32 +136,21 @@ async function getSummaryFromAI(articles: any) {
   return rewrittenArticles;
 }
 
-export async function GET() {
-  const now = Date.now();
-
-  // Use cached raw news if available
-  if (checkCache()) {
-    console.log('Using cached raw uplifting news, but processing with AI 📰');
-    const filteredResult = await getFilteredTopStories(cachedRedditNews);
-    const articlesToSummarize =
-      filteredResult?.upliftingStories || filteredResult || [];
-    const summarizedArticles = await getSummaryFromAI(articlesToSummarize);
-    return NextResponse.json(summarizedArticles);
-  }
-
+async function getTopUpliftingNews(accessToken: string) {
+  console.log('Fetching fresh news from Uplifting News via Reddit API...');
   try {
-    console.log('Fetching fresh news from Uplifting News');
-
-    const response = await axios.get(REDDIT_URL, {
-      headers: {
-        'User-Agent': 'news-ai-chi/0.1.0 by /u/bsidesister',
-      },
-    });
-
-    console.log(
-      `Received ${
-        response.data?.data?.children?.length || 0
-      } uplifting articles from reddit`
+    const response = await axios.get(
+      `${REDDIT_API_BASE_URL}/${UPLIFTING_NEWS_SUBREDDIT}`,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'User-Agent': 'news-ai-chi/0.1.0 by /u/bsidesister',
+        },
+        params: {
+          limit: 50,
+          t: 'day',
+        },
+      }
     );
 
     if (
@@ -135,47 +158,71 @@ export async function GET() {
       !Array.isArray(response.data.data.children)
     ) {
       console.error('Invalid API response structure:', response.data);
-      return NextResponse.json(
-        { error: 'Invalid API response structure' },
-        { status: 500 }
-      );
+      return { error: 'Invalid API response structure' };
     }
 
     const articles = response.data.data.children.map(
       (child: {
-        data: { title: any; url: any; subreddit_name_prefixed: any };
+        data: {
+          title: any;
+          url: any;
+          subreddit_name_prefixed: any;
+          selftext: any;
+        };
       }) => ({
         title: child.data.title,
         url: child.data.url,
         source: child.data.subreddit_name_prefixed,
+        description: child.data.selftext, // Inspect this for actual content
         reddit_data: child.data,
       })
     );
+    return articles;
+  } catch (error: any) {
+    console.error('Error fetching top news from Reddit API:', error);
+    return {
+      error: `Failed to fetch top news from Reddit API: ${error.message}`,
+    };
+  }
+}
 
-    cachedRedditNews = articles;
+export async function GET() {
+  const now = Date.now();
+
+  // Use cached processed news if available
+  if (checkCache()) {
+    console.log('Using cached and processed uplifting news 📰');
+    const summarizedArticles = await getSummaryFromAI(cachedRedditNews);
+    return NextResponse.json(summarizedArticles);
+  }
+
+  try {
+    const accessToken = await getAccessToken();
+    const freshArticlesResult = await getTopUpliftingNews(accessToken);
+
+    if (freshArticlesResult?.error) {
+      console.error('Error fetching articles:', freshArticlesResult.error);
+      return NextResponse.json(
+        { error: freshArticlesResult.error },
+        { status: 500 }
+      );
+    }
+
+    const freshArticles = freshArticlesResult as any[];
+    cachedRedditNews = freshArticles;
     lastFetchedTime = now;
 
-    const filteredResult = await getFilteredTopStories(articles);
+    const filteredResult = await getFilteredTopStories(freshArticles);
     const articlesToSummarize =
       filteredResult?.upliftingStories || filteredResult || [];
     const summarizedArticles = await getSummaryFromAI(articlesToSummarize);
 
     return NextResponse.json(summarizedArticles);
   } catch (error: any) {
-    console.error('Error fetching or processing uplifting news:', error);
-    if (error.response?.status === 403) {
-      return NextResponse.json(
-        {
-          error:
-            'Forbidden - Could not retrieve data from Reddit. Please check your User-Agent or if Reddit is blocking requests.',
-        },
-        { status: 403 }
-      );
-    } else {
-      return NextResponse.json(
-        { error: `Failed to fetch uplifting news: ${error.message}` },
-        { status: 500 }
-      );
-    }
+    console.error('Error in GET handler:', error);
+    return NextResponse.json(
+      { error: `Failed to fetch and process uplifting news: ${error.message}` },
+      { status: 500 }
+    );
   }
 }
