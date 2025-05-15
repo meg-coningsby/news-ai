@@ -100,9 +100,7 @@ export default function Home() {
               )}
             </li>
           ))}
-          {news.length === 0 && (
-            <p className="text-gray-500">No must-read news at the moment.</p>
-          )}
+          {news.length === 0 && <p className="text-gray-500">Loading...</p>}
         </ul>
       </section>
 
@@ -135,9 +133,7 @@ export default function Home() {
             </div>
           ))}
           {upliftingNews.length === 0 && (
-            <p className="text-gray-500">
-              No uplifting news to share right now. Check back later!
-            </p>
+            <p className="text-gray-500">Loading...</p>
           )}
         </div>
       </section>

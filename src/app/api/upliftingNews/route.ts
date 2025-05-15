@@ -10,7 +10,6 @@ const REDDIT_API_BASE_URL = 'https://oauth.reddit.com';
 const UPLIFTING_NEWS_SUBREDDIT = 'r/upliftingnews/top';
 
 async function getAccessToken() {
-  console.log('Attempting to get Reddit API access token...');
   try {
     const clientId = process.env.REDDIT_CLIENT_ID;
     const clientSecret = process.env.REDDIT_CLIENT_SECRET;
@@ -42,7 +41,6 @@ async function getAccessToken() {
       }
     );
 
-    console.log('Reddit API access token response:', response.data);
     return response.data.access_token;
   } catch (error) {
     console.error('Error getting access token:', error);
