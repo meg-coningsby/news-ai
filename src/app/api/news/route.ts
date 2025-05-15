@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import axios, { AxiosError } from 'axios';
 import OpenAI from 'openai';
 import {
