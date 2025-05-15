@@ -6,25 +6,33 @@ import {
   REWRITE_UPLIFTING_PROMPT,
 } from '../../lib/prompt';
 
-const REDDIT_CLIENT_ID = process.env.REDDIT_CLIENT_ID;
-const REDDIT_CLIENT_SECRET = process.env.REDDIT_CLIENT_SECRET;
-const REDDIT_USERNAME = process.env.REDDIT_USERNAME;
-const REDDIT_PASSWORD = process.env.REDDIT_PASSWORD;
 const REDDIT_API_BASE_URL = 'https://oauth.reddit.com';
 const UPLIFTING_NEWS_SUBREDDIT = 'r/upliftingnews/top';
 
 async function getAccessToken() {
+  console.log('Attempting to get Reddit API access token...');
   try {
-    const authString = Buffer.from(
-      `${REDDIT_CLIENT_ID}:${REDDIT_CLIENT_SECRET}`
-    ).toString('base64');
+    const clientId = process.env.REDDIT_CLIENT_ID;
+    const clientSecret = process.env.REDDIT_CLIENT_SECRET;
+    const username = process.env.REDDIT_USERNAME;
+    const password = process.env.REDDIT_PASSWORD;
+
+    if (!clientId || !clientSecret || !username || !password) {
+      console.error(
+        'Error: Reddit API credentials (client ID, secret, username, or password) are not set in the environment variables.'
+      );
+      throw new Error('Reddit API credentials missing');
+    }
+
+    const authString = Buffer.from(`${clientId}:${clientSecret}`).toString(
+      'base64'
+    );
 
     const response = await axios.post(
       'https://www.reddit.com/api/v1/access_token',
-      'grant_type=password&username=' +
-        encodeURIComponent(REDDIT_USERNAME) +
-        '&password=' +
-        encodeURIComponent(REDDIT_PASSWORD),
+      `grant_type=password&username=${encodeURIComponent(
+        username
+      )}&password=${encodeURIComponent(password)}`,
       {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
@@ -34,6 +42,7 @@ async function getAccessToken() {
       }
     );
 
+    console.log('Reddit API access token response:', response.data);
     return response.data.access_token;
   } catch (error) {
     console.error('Error getting access token:', error);
