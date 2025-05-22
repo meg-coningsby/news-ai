@@ -120,7 +120,7 @@ export default function Home() {
               {news.length === 0 && !loading && (
                 <div className="bg-white rounded-xl shadow-lg p-5 text-center">
                   <p className="text-slate-500 font-medium">
-                    No doom to report right now... surprisingly.
+                    The doom is loading...
                   </p>
                 </div>
               )}
