@@ -2,7 +2,12 @@
   "crons": [
     {
       "path": "/api/cron/process-daily-news",
-      "schedule": "0 2 * * *"
+      "schedule": "0 16 * * *"
     }
-  ]
+  ],
+  "functions": {
+    "app/api/cron/process-daily-news/route.ts": {
+      "maxDuration": 60
+    }
+  }
 }

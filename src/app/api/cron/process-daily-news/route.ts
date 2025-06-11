@@ -150,38 +150,46 @@ async function summarizeGeneralNews(
   articles: GeneralNewsTruncatedArticle[]
 ): Promise<GeneralNewsArticleWithSummary[]> {
   if (!articles || articles.length === 0) return [];
-  const summarizedArticles: GeneralNewsArticleWithSummary[] = [];
-  for (const article of articles) {
-    if (!article || !article.title) continue;
-    try {
-      const prompt = REWRITE_SUMMARIZE_PROMPT(article);
-      const completion = await openai.chat.completions.create({
+
+  const summaryPromises = articles.map((article) => {
+    if (!article || !article.title)
+      return Promise.resolve({
+        ...article,
+        summary: ['Skipped due to missing data'],
+      });
+
+    const prompt = REWRITE_SUMMARIZE_PROMPT(article);
+    return openai.chat.completions
+      .create({
         model: 'gpt-3.5-turbo',
         messages: [{ role: 'user', content: prompt }],
+      })
+      .then((completion) => {
+        const aiResponse = completion.choices[0].message.content ?? '';
+        const parsedResponse = JSON.parse(aiResponse);
+        return {
+          ...article,
+          title: parsedResponse.title || article.title,
+          summary:
+            Array.isArray(parsedResponse.summary) &&
+            parsedResponse.summary.length > 0
+              ? parsedResponse.summary
+              : article.summary || ['No summary available'],
+        };
+      })
+      .catch((error) => {
+        console.error(
+          `Error summarizing general news article "${article.title}":`,
+          error
+        );
+        return {
+          ...article,
+          summary: article.summary || ['Summary not available due to error'],
+        };
       });
-      const aiResponse = completion.choices[0].message.content ?? '';
-      const parsedResponse = JSON.parse(aiResponse);
-      summarizedArticles.push({
-        ...article,
-        title: parsedResponse.title || article.title,
-        summary:
-          Array.isArray(parsedResponse.summary) &&
-          parsedResponse.summary.length > 0
-            ? parsedResponse.summary
-            : article.summary || ['No summary available'],
-      });
-    } catch (error) {
-      console.error(
-        `Error summarizing general news article "${article.title}":`,
-        error
-      );
-      summarizedArticles.push({
-        ...article,
-        summary: article.summary || ['Summary not available due to error'],
-      });
-    }
-  }
-  return summarizedArticles;
+  });
+
+  return Promise.all(summaryPromises);
 }
 
 // --- Functions for Uplifting News (Reddit) ---
@@ -275,47 +283,48 @@ async function summarizeUpliftingNews(
   articles: UpliftingNewsRawArticle[]
 ): Promise<UpliftingNewsArticleWithSummary[]> {
   if (!articles || articles.length === 0) return [];
-  const rewrittenArticles: UpliftingNewsArticleWithSummary[] = [];
-  for (const article of articles) {
-    try {
-      const prompt = REWRITE_UPLIFTING_PROMPT({ title: article.title });
-      const completion = await openai.chat.completions.create({
+
+  const summaryPromises = articles.map((article) => {
+    const prompt = REWRITE_UPLIFTING_PROMPT({ title: article.title });
+    return openai.chat.completions
+      .create({
         model: 'gpt-3.5-turbo',
         messages: [{ role: 'user', content: prompt }],
+      })
+      .then((completion) => {
+        const aiResponse = completion.choices[0].message.content ?? '';
+        const parsedResponse = JSON.parse(aiResponse);
+        return {
+          title: parsedResponse.title || article.title,
+          url: article.url,
+          source: article.source,
+          summary: [parsedResponse.title || article.title],
+        };
+      })
+      .catch((error) => {
+        console.error(
+          `Error rewriting uplifting headline for "${article.title}":`,
+          error
+        );
+        return {
+          title: article.title,
+          url: article.url,
+          source: article.source,
+          summary: [article.title],
+        };
       });
-      const aiResponse = completion.choices[0].message.content ?? '';
-      const parsedResponse = JSON.parse(aiResponse);
-      rewrittenArticles.push({
-        title: parsedResponse.title || article.title,
-        url: article.url,
-        source: article.source,
-        summary: [parsedResponse.title || article.title], // The summary is the rewritten headline
-      });
-    } catch (error) {
-      console.error(
-        `Error rewriting uplifting headline for "${article.title}":`,
-        error
-      );
-      rewrittenArticles.push({
-        title: article.title,
-        url: article.url,
-        source: article.source,
-        summary: [article.title],
-      });
-    }
-  }
-  return rewrittenArticles;
+  });
+
+  return Promise.all(summaryPromises);
 }
 
 export async function GET() {
   console.log('CRON JOB STARTED: Starting daily news processing.');
   try {
-    // --- Process General News ---
     console.log('CRON: --- Processing General News (MediaStack) ---');
     const apiKey = process.env.MEDIASTACK_API_KEY;
     if (!apiKey) throw new Error('MEDIASTACK_API_KEY is not set.');
 
-    // Define filters for MediaStack API
     const includedCategories = 'general,business,health,science,technology';
     const excludedKeywordsList =
       'football,soccer,cricket,rugby,basketball,nba,a-league,grand final,celebrity,actor,singer,movie,tv show,gossip,entertainment,lifestyle,fashion,travel,food,recipe,local news,shop,store,sport,game,league,club,player,coach,score,win,lose,final';
@@ -359,7 +368,6 @@ export async function GET() {
       );
     }
 
-    // --- Process Uplifting News ---
     console.log('CRON: --- Processing Uplifting News (Reddit) ---');
     const accessToken = await getRedditAccessToken();
     const rawUpliftingArticlesResult = await fetchUpliftingNewsFromApi(
