@@ -251,31 +251,77 @@ async function fetchUpliftingNewsFromApi(
     return { error: `Failed to fetch from Reddit API: ${error.message}` };
   }
 }
-
 async function filterUpliftingNews(
   articles: UpliftingNewsRawArticle[]
 ): Promise<UpliftingNewsRawArticle[]> {
   if (!articles || articles.length === 0) return [];
+
+  console.log(
+    'DEBUG: Starting to filter uplifting news. Number of articles received:',
+    articles.length
+  );
+  // Log the first article's URL from Reddit for comparison
+  if (articles.length > 0) {
+    console.log('DEBUG: Example URL from Reddit data:', articles[0].url);
+  }
+
   const truncatedArticles = articles.map((article) => ({
     title: article.title,
     summary: article.description,
     url: article.url,
   }));
   const prompt = SELECT_UPLIFTING_STORIES_PROMPT(truncatedArticles);
+
   try {
     const completion = await openai.chat.completions.create({
       model: 'gpt-3.5-turbo',
       messages: [{ role: 'user', content: prompt }],
     });
     const aiResponse = completion.choices[0].message.content ?? '';
+
+    // --- NEW DEBUG LOGS ---
+    console.log(
+      'DEBUG: Raw AI response string for uplifting news filter:',
+      aiResponse
+    );
+
     const parsedResponse = JSON.parse(aiResponse);
-    const topStoriesInfo: { url: string }[] =
-      parsedResponse.topStories || parsedResponse;
-    const topUrls = new Set(topStoriesInfo.map((story) => story.url));
-    return articles.filter((article) => topUrls.has(article.url));
+    console.log(
+      'DEBUG: Parsed AI response object:',
+      JSON.stringify(parsedResponse, null, 2)
+    );
+
+    // This is a safer way to get the array
+    const topStoriesInfo: any[] =
+      parsedResponse.topStories ||
+      (Array.isArray(parsedResponse) ? parsedResponse : []);
+
+    if (!Array.isArray(topStoriesInfo)) {
+      console.error(
+        'DEBUG: AI response for top stories is NOT an array!',
+        topStoriesInfo
+      );
+      return []; // Exit safely
+    }
+
+    const topUrls = new Set(
+      topStoriesInfo.map((story) => story.url).filter((url) => url)
+    ); // Filter out any undefined URLs
+    console.log('DEBUG: Set of top URLs extracted from AI response:', topUrls);
+    // --- END NEW DEBUG LOGS ---
+
+    const filteredArticles = articles.filter((article) =>
+      topUrls.has(article.url)
+    );
+
+    console.log(
+      `DEBUG: Matched ${filteredArticles.length} articles after filtering.`
+    );
+
+    return filteredArticles;
   } catch (error) {
-    console.error('Error filtering uplifting news stories:', error);
-    return [];
+    console.error('DEBUG: Error inside filterUpliftingNews function:', error);
+    return []; // Return empty on error
   }
 }
 
