@@ -260,15 +260,10 @@ async function filterUpliftingNews(
     'DEBUG: Starting to filter uplifting news. Number of articles received:',
     articles.length
   );
-  // Log the first article's URL from Reddit for comparison
-  if (articles.length > 0) {
-    console.log('DEBUG: Example URL from Reddit data:', articles[0].url);
-  }
 
   const truncatedArticles = articles.map((article) => ({
     title: article.title,
     summary: article.description,
-    url: article.url,
   }));
   const prompt = SELECT_UPLIFTING_STORIES_PROMPT(truncatedArticles);
 
@@ -278,50 +273,34 @@ async function filterUpliftingNews(
       messages: [{ role: 'user', content: prompt }],
     });
     const aiResponse = completion.choices[0].message.content ?? '';
-
-    // --- NEW DEBUG LOGS ---
     console.log(
-      'DEBUG: Raw AI response string for uplifting news filter:',
+      'DEBUG: Raw AI response for uplifting news filter:',
       aiResponse
     );
 
     const parsedResponse = JSON.parse(aiResponse);
-    console.log(
-      'DEBUG: Parsed AI response object:',
-      JSON.stringify(parsedResponse, null, 2)
-    );
 
-    // This is a safer way to get the array
-    const topStoriesInfo: any[] =
-      parsedResponse.topStories ||
-      (Array.isArray(parsedResponse) ? parsedResponse : []);
+    const selectedIndices: number[] = parsedResponse.topStoriesIndices || [];
 
-    if (!Array.isArray(topStoriesInfo)) {
-      console.error(
-        'DEBUG: AI response for top stories is NOT an array!',
-        topStoriesInfo
-      );
-      return []; // Exit safely
+    if (!Array.isArray(selectedIndices) || selectedIndices.length === 0) {
+      console.error('DEBUG: AI did not return a valid array of indices.');
+      return [];
     }
 
-    const topUrls = new Set(
-      topStoriesInfo.map((story) => story.url).filter((url) => url)
-    ); // Filter out any undefined URLs
-    console.log('DEBUG: Set of top URLs extracted from AI response:', topUrls);
-    // --- END NEW DEBUG LOGS ---
+    console.log('DEBUG: Indices selected by AI:', selectedIndices);
 
-    const filteredArticles = articles.filter((article) =>
-      topUrls.has(article.url)
-    );
+    const filteredArticles = selectedIndices
+      .map((index) => articles[index])
+      .filter((article) => article !== undefined);
 
     console.log(
-      `DEBUG: Matched ${filteredArticles.length} articles after filtering.`
+      `DEBUG: Matched ${filteredArticles.length} articles after filtering by index.`
     );
 
     return filteredArticles;
   } catch (error) {
     console.error('DEBUG: Error inside filterUpliftingNews function:', error);
-    return []; // Return empty on error
+    return [];
   }
 }
 

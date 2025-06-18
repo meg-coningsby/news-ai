@@ -67,8 +67,13 @@ Return your summary in exactly this JSON format:
 export const SELECT_UPLIFTING_STORIES_PROMPT = (articles: any[]) => `
 You are an AI curator for the 'Good News' section of an Australian news app. Your task is to select the most genuinely uplifting and positive news stories from the following articles.
 
-Here are recent news articles:
-${JSON.stringify(articles, null, 2)}
+Here are recent news articles, each with an index:
+${JSON.stringify(
+  // We'll add the index to each article before sending it to the AI
+  articles.map((article, index) => ({ ...article, index })),
+  null,
+  2
+)}
 
 STORY SELECTION CRITERIA:
 - Choose between 10 to 30 articles that are genuinely uplifting, heartwarming, and positive.
@@ -102,9 +107,12 @@ For EACH article, perform a KEYWORD SEARCH and EMOTIONAL TONE ASSESSMENT in its 
 3. Does the story primarily focus on an act of kindness, a positive achievement, or a hopeful development? If NO, EXCLUDE.
 4. Could the story be misconstrued as trivial or lacking genuine substance? If YES, EXCLUDE.
 
-Return your selection in this format:
+// --- THIS IS THE MODIFIED PART ---
+Return your selection as a valid JSON object with a single key "upliftingStoryIndices". The value should be an array of the 0-based INDEXES of your selected articles from the list I provided.
+
+Example Response:
 {
-  "upliftingStories": [...the selected articles (minimum 10, to 30 maximum)...]
+  "upliftingStoryIndices": [2, 8, 11, 15, 24, 29, 35, 40, 41, 48]
 }
 `;
 
