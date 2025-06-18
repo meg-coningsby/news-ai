@@ -256,14 +256,10 @@ async function filterUpliftingNews(
 ): Promise<UpliftingNewsRawArticle[]> {
   if (!articles || articles.length === 0) return [];
 
-  console.log(
-    'DEBUG: Starting to filter uplifting news. Number of articles received:',
-    articles.length
-  );
-
-  const truncatedArticles = articles.map((article) => ({
+  const truncatedArticles = articles.map((article, index) => ({
     title: article.title,
     summary: article.description,
+    index: index, // Pass the index to the prompt
   }));
   const prompt = SELECT_UPLIFTING_STORIES_PROMPT(truncatedArticles);
 
@@ -273,34 +269,31 @@ async function filterUpliftingNews(
       messages: [{ role: 'user', content: prompt }],
     });
     const aiResponse = completion.choices[0].message.content ?? '';
-    console.log(
-      'DEBUG: Raw AI response for uplifting news filter:',
-      aiResponse
-    );
 
     const parsedResponse = JSON.parse(aiResponse);
 
-    const selectedIndices: number[] = parsedResponse.topStoriesIndices || [];
+    const selectedIndices: number[] =
+      parsedResponse.upliftingStoryIndices || [];
 
-    if (!Array.isArray(selectedIndices) || selectedIndices.length === 0) {
-      console.error('DEBUG: AI did not return a valid array of indices.');
+    if (!Array.isArray(selectedIndices)) {
+      console.error(
+        '[UPLIFTING-DEBUG] filterUpliftingNews: "upliftingStoryIndices" is not an array!',
+        selectedIndices
+      );
       return [];
     }
-
-    console.log('DEBUG: Indices selected by AI:', selectedIndices);
 
     const filteredArticles = selectedIndices
       .map((index) => articles[index])
       .filter((article) => article !== undefined);
 
-    console.log(
-      `DEBUG: Matched ${filteredArticles.length} articles after filtering by index.`
-    );
-
     return filteredArticles;
   } catch (error) {
-    console.error('DEBUG: Error inside filterUpliftingNews function:', error);
-    return [];
+    console.error(
+      '[UPLIFTING-DEBUG] filterUpliftingNews: CRITICAL ERROR during filtering step:',
+      error
+    );
+    return []; // Return empty on error
   }
 }
 
@@ -344,9 +337,7 @@ async function summarizeUpliftingNews(
 }
 
 export async function GET() {
-  console.log('CRON JOB STARTED: Starting daily news processing.');
   try {
-    console.log('CRON: --- Processing General News (MediaStack) ---');
     const apiKey = process.env.MEDIASTACK_API_KEY;
     if (!apiKey) throw new Error('MEDIASTACK_API_KEY is not set.');
 
@@ -365,9 +356,6 @@ export async function GET() {
       includedCategories,
       keywordsApiFilter
     );
-    console.log(
-      `CRON: Fetched ${rawGeneralArticles.length} raw articles from MediaStack.`
-    );
 
     if (rawGeneralArticles.length > 0) {
       const truncatedGeneralArticles = rawGeneralArticles.map(
@@ -376,24 +364,14 @@ export async function GET() {
       const filteredGeneralArticles = await filterGeneralNews(
         truncatedGeneralArticles
       );
-      console.log(
-        `CRON: Filtered down to ${filteredGeneralArticles.length} general articles.`
-      );
 
       const finalGeneralArticles = await summarizeGeneralNews(
         filteredGeneralArticles
       );
-      console.log(
-        `CRON: Summarized ${finalGeneralArticles.length} general articles.`
-      );
 
       await kv.set(GENERAL_NEWS_REDIS_KEY, finalGeneralArticles);
-      console.log(
-        `CRON: Successfully stored ${finalGeneralArticles.length} general news articles in Redis.`
-      );
     }
 
-    console.log('CRON: --- Processing Uplifting News (Reddit) ---');
     const accessToken = await getRedditAccessToken();
     const rawUpliftingArticlesResult = await fetchUpliftingNewsFromApi(
       accessToken
@@ -402,31 +380,18 @@ export async function GET() {
     if ('error' in rawUpliftingArticlesResult) {
       throw new Error(rawUpliftingArticlesResult.error);
     }
-    console.log(
-      `CRON: Fetched ${rawUpliftingArticlesResult.length} raw articles from Reddit.`
-    );
 
     if (rawUpliftingArticlesResult.length > 0) {
       const filteredUpliftingArticles = await filterUpliftingNews(
         rawUpliftingArticlesResult
       );
-      console.log(
-        `CRON: Filtered down to ${filteredUpliftingArticles.length} uplifting articles.`
-      );
 
       const finalUpliftingArticles = await summarizeUpliftingNews(
         filteredUpliftingArticles
       );
-      console.log(
-        `CRON: Rewrote headlines for ${finalUpliftingArticles.length} uplifting articles.`
-      );
 
       await kv.set(UPLIFTING_NEWS_REDIS_KEY, finalUpliftingArticles);
-      console.log(
-        `CRON: Successfully stored ${finalUpliftingArticles.length} uplifting news articles in Redis.`
-      );
     }
-
     return NextResponse.json({
       success: true,
       message: 'Daily news processing completed successfully.',
@@ -437,7 +402,5 @@ export async function GET() {
       { success: false, error: error.message },
       { status: 500 }
     );
-  } finally {
-    console.log('CRON JOB FINISHED.');
   }
 }
