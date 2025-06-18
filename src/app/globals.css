@@ -8,9 +8,9 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
-  --font-geist-sans: system-ui, sans-serif; /* Fallback */
-  --font-geist-mono: monospace; /* Fallback */
-  --font-inter: 'Inter', sans-serif; /* Add Inter variable */
+  --font-geist-sans: system-ui, sans-serif;
+  --font-geist-mono: monospace;
+  --font-inter: 'Inter', sans-serif;
 }
 
 @theme inline {

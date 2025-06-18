@@ -4,7 +4,7 @@
 
 **[➡️ View Doom & Bloom Daily](https://news-ai-chi.vercel.app/)**
 
-![App Screenshot](app-image.png)
+![App Screenshot](public/app-image.png)
 
 ## About The Project
 

@@ -13,11 +13,7 @@ const eslintConfig = [
   ...compat.extends('next/core-web-vitals', 'next/typescript'),
   {
     rules: {
-      '@typescript-eslint/no-explicit-any': 'off', // To disable the rule
-      // Or to configure it as a warning:
-      // "@typescript-eslint/no-explicit-any": "warn",
-      // Or to configure it with specific options (if available for this rule):
-      // "@typescript-eslint/no-explicit-any": ["error", { ignoreRestArgs: true }],
+      '@typescript-eslint/no-explicit-any': 'off',
     },
   },
 ];
